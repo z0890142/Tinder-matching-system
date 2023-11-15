@@ -1,0 +1,106 @@
+definitions:
+  models.ErrorDetails:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    required:
+    - code
+    - message
+    type: object
+  models.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/models.ErrorDetails'
+    required:
+    - error
+    type: object
+  models.SinglePerson:
+    properties:
+      gender:
+        example: M or F
+        type: string
+      height:
+        type: integer
+      lock:
+        $ref: '#/definitions/sync.Mutex'
+      name:
+        type: string
+      number_of_date:
+        type: integer
+    type: object
+  models.SinglePersonMatchRequest:
+    properties:
+      "n":
+        type: integer
+      name:
+        type: string
+    type: object
+  sync.Mutex:
+    type: object
+info:
+  contact: {}
+  title: Tinder Matching System API
+  version: "1.0"
+paths:
+  /tinder_system/v1/persons:
+    post:
+      parameters:
+      - description: params
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/models.SinglePerson'
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Add a new user to the matching system and find any possible matches
+        for the new user
+  /tinder_system/v1/persons/{name}:
+    delete:
+      parameters:
+      - description: person name
+        in: path
+        name: name
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Remove a user from the matching system so that the user cannot be matched
+        anymore.
+  /tinder_system/v1/persons:match:
+    post:
+      parameters:
+      - description: params
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/models.SinglePersonMatchRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Find the most N possible matched single people, where N is a request
+        parameter.
+swagger: "2.0"

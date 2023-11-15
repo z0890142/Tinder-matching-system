@@ -1,0 +1,161 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "Tinder Matching System API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "paths": {
+        "/tinder_system/v1/persons": {
+            "post": {
+                "summary": "Add a new user to the matching system and find any possible matches for the new user",
+                "parameters": [
+                    {
+                        "description": "params",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SinglePerson"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tinder_system/v1/persons/{name}": {
+            "delete": {
+                "summary": "Remove a user from the matching system so that the user cannot be matched anymore.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "person name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tinder_system/v1/persons:match": {
+            "post": {
+                "summary": "Find the most N possible matched single people, where N is a request parameter.",
+                "parameters": [
+                    {
+                        "description": "params",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SinglePersonMatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.ErrorDetails": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ErrorResponse": {
+            "type": "object",
+            "required": [
+                "error"
+            ],
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/models.ErrorDetails"
+                }
+            }
+        },
+        "models.SinglePerson": {
+            "type": "object",
+            "properties": {
+                "gender": {
+                    "type": "string",
+                    "example": "M or F"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "lock": {
+                    "$ref": "#/definitions/sync.Mutex"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "number_of_date": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.SinglePersonMatchRequest": {
+            "type": "object",
+            "properties": {
+                "n": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "sync.Mutex": {
+            "type": "object"
+        }
+    }
+}
