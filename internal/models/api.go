@@ -11,7 +11,7 @@ type AddSinglePersonAndMatchResponse struct {
 }
 
 type QuerySinglePeopleResponse struct {
-	SinglePeople []*SinglePerson `json:"singlePeople"`
+	Matches []*SinglePerson `json:"matches"`
 }
 
 type QueryFilter struct {
@@ -20,4 +20,8 @@ type QueryFilter struct {
 	HeightGte int
 	HeightLte int
 	Gender    string
+}
+
+type CommonResponse struct {
+	Result string
 }

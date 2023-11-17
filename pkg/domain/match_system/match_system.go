@@ -3,24 +3,28 @@ package matchesystem
 import (
 	"fmt"
 	"sync"
+	"tinderMatchingSystem/internal/c"
 	"tinderMatchingSystem/internal/models"
+	matchSystemUtils "tinderMatchingSystem/pkg/utils/match_system"
 )
 
 type MatcheSystem interface {
 	RegisterSinglePerson(person *models.SinglePerson) error
 	RemoveSinglePerson(personName string) error
-	MatchingFmalePerson(person *models.SinglePerson, numberOfDate int) []*models.SinglePerson
-	MatchingMalePerson(person *models.SinglePerson, numberOfDate int) []*models.SinglePerson
-	QuerySinglePerson(filter models.QueryFilter) ([]*models.SinglePerson, error)
+	MatchingPerson(person *models.SinglePerson, numberOfDate int) []*models.SinglePerson
+	QuerySinglePerson(filter *models.QueryFilter) ([]*models.SinglePerson, error)
+
+	GetHightIndex(gender string) map[int][]int
+	GetNameIndex() map[string]*models.SinglePerson
 }
 
 type matcheSystem struct {
-	mu            sync.RWMutex
-	singlePersons sync.Map
+	mu sync.RWMutex
 
-	nameIndex        sync.Map
-	maleHeightIndex  map[int][]int
-	fmaleHeightIndex map[int][]int
+	singlePersons     map[int]*models.SinglePerson
+	nameIndex         map[string]*models.SinglePerson
+	maleHeightIndex   map[int][]int
+	femaleHeightIndex map[int][]int
 
 	nextID int
 }
@@ -28,8 +32,10 @@ type matcheSystem struct {
 func NewMatcheSystem() MatcheSystem {
 
 	return &matcheSystem{
-		maleHeightIndex:  make(map[int][]int),
-		fmaleHeightIndex: make(map[int][]int),
+		singlePersons:     make(map[int]*models.SinglePerson),
+		nameIndex:         make(map[string]*models.SinglePerson),
+		maleHeightIndex:   make(map[int][]int),
+		femaleHeightIndex: make(map[int][]int),
 	}
 }
 
@@ -37,19 +43,25 @@ func (s *matcheSystem) RegisterSinglePerson(person *models.SinglePerson) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if err := matchSystemUtils.ValidatePerson(person); err != nil {
+		return fmt.Errorf("RegisterSinglePerson : %s", err.Error())
+	}
+
 	person.ID = s.nextID
 
-	if _, load := s.nameIndex.LoadOrStore(person.Name, &person); load {
-		fmt.Println("RegisterSinglePerson : person alrealdy exist")
+	if _, ok := s.nameIndex[person.Name]; !ok {
+		s.nameIndex[person.Name] = person
+	} else {
+		return fmt.Errorf("RegisterSinglePerson : person alrealdy exist")
 	}
 
 	heightLevel := person.Height - (person.Height % 10)
-	s.singlePersons.Store(person.ID, person)
+	s.singlePersons[person.ID] = person
 
-	if person.Gender == "M" {
+	if person.Gender == c.Male {
 		s.maleHeightIndex[heightLevel] = append(s.maleHeightIndex[heightLevel], person.ID)
-	} else if person.Gender == "F" {
-		s.fmaleHeightIndex[heightLevel] = append(s.fmaleHeightIndex[heightLevel], person.ID)
+	} else if person.Gender == c.Female {
+		s.femaleHeightIndex[heightLevel] = append(s.femaleHeightIndex[heightLevel], person.ID)
 	}
 
 	s.nextID++
@@ -60,81 +72,62 @@ func (s *matcheSystem) RegisterSinglePerson(person *models.SinglePerson) error {
 func (s *matcheSystem) RemoveSinglePerson(personName string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	p, ok := s.nameIndex.Load(personName)
+	if personName == "" {
+		return fmt.Errorf("RegisterSinglePerson : person name is null")
+	}
+	person, ok := s.nameIndex[personName]
 	if !ok {
-		fmt.Println("RegisterSinglePerson : person not exist")
+		return fmt.Errorf("RegisterSinglePerson : person not exist")
 	}
 
-	person := p.(*models.SinglePerson)
 	heightLevel := person.Height - (person.Height % 10)
 
-	if person.Gender == "M" {
-		// delete height index
-		if indices, ok := s.maleHeightIndex[heightLevel]; ok {
-			for i, idx := range indices {
-				if idx == person.ID {
-					s.maleHeightIndex[heightLevel] = append(indices[:i], indices[i+1:]...)
-					break
-				}
-			}
-			if len(s.maleHeightIndex[heightLevel]) == 0 {
-				delete(s.maleHeightIndex, heightLevel)
-			}
-		}
-
+	if person.Gender == c.Male {
+		matchSystemUtils.DeleteHeightIndex(s.maleHeightIndex, person.ID, heightLevel)
 	} else {
-		if indices, ok := s.fmaleHeightIndex[heightLevel]; ok {
-			for i, idx := range indices {
-				if idx == person.ID {
-					s.fmaleHeightIndex[heightLevel] = append(indices[:i], indices[i+1:]...)
-					break
-				}
-			}
-			if len(s.fmaleHeightIndex[heightLevel]) == 0 {
-				delete(s.fmaleHeightIndex, heightLevel)
-			}
-		}
+		matchSystemUtils.DeleteHeightIndex(s.femaleHeightIndex, person.ID, heightLevel)
 	}
 
-	s.nameIndex.Delete(personName)
+	delete(s.nameIndex, personName)
+	delete(s.singlePersons, person.ID)
 
 	return nil
 }
 
-func (s *matcheSystem) QuerySinglePerson(filter models.QueryFilter) ([]*models.SinglePerson, error) {
+func (s *matcheSystem) QuerySinglePerson(filter *models.QueryFilter) ([]*models.SinglePerson, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var result []*models.SinglePerson
+	if filter.N == 0 {
+		return nil, fmt.Errorf("QuerySinglePerson : n can't be 0")
+	}
+	result := make([]*models.SinglePerson, 0)
 
 	if filter.Name != "" {
-		p, ok := s.nameIndex.Load(filter.Name)
+		person, ok := s.nameIndex[filter.Name]
 		if !ok {
 			return nil, fmt.Errorf("QuerySinglePerson : person not found")
 		}
-		result = append(result, p.(*models.SinglePerson))
+		result = append(result, person)
 		return result, nil
 	}
 
 	heightIdxs := make([]int, 0)
 	if filter.Gender == "" {
-		s.findFmaleHeightIdx(filter.HeightGte, filter.HeightLte, &heightIdxs)
-		s.findMaleHeightIdx(filter.HeightGte, filter.HeightLte, &heightIdxs)
-	} else if filter.Gender == "M" {
-		s.findMaleHeightIdx(filter.HeightGte, filter.HeightLte, &heightIdxs)
+		matchSystemUtils.FindHeightIdx(s.maleHeightIndex, filter.HeightGte, filter.HeightLte, &heightIdxs)
+		matchSystemUtils.FindHeightIdx(s.femaleHeightIndex, filter.HeightGte, filter.HeightLte, &heightIdxs)
+	} else if filter.Gender == c.Male {
+		matchSystemUtils.FindHeightIdx(s.maleHeightIndex, filter.HeightGte, filter.HeightLte, &heightIdxs)
 	} else {
-		s.findFmaleHeightIdx(filter.HeightGte, filter.HeightLte, &heightIdxs)
-
+		matchSystemUtils.FindHeightIdx(s.femaleHeightIndex, filter.HeightGte, filter.HeightLte, &heightIdxs)
 	}
 
 	for _, idx := range heightIdxs {
 		if filter.N == 0 {
 			break
 		}
-		t, _ := s.singlePersons.Load(idx)
-		target := t.(*models.SinglePerson)
-		if target.Height > filter.HeightLte || target.Height < filter.HeightGte {
+		target := s.singlePersons[idx]
+		if (filter.HeightLte != 0 && target.Height > filter.HeightLte) || (filter.HeightGte != 0 && target.Height < filter.HeightGte) {
 			continue
 		}
 		result = append(result, target)
@@ -143,32 +136,36 @@ func (s *matcheSystem) QuerySinglePerson(filter models.QueryFilter) ([]*models.S
 	return result, nil
 }
 
-func (s *matcheSystem) MatchingMalePerson(person *models.SinglePerson, numberOfDate int) []*models.SinglePerson {
-
-	matches := make([]*models.SinglePerson, 0)
+func (s *matcheSystem) MatchingPerson(person *models.SinglePerson, numberOfDate int) []*models.SinglePerson {
 	heightLevel := person.Height - (person.Height % 10)
+	matches := make([]*models.SinglePerson, 0)
 	heightIdxs := make([]int, 0)
-	s.findMaleHeightIdx(heightLevel, 0, &heightIdxs)
+
+	if person.Gender == c.Female {
+		matchSystemUtils.FindHeightIdx(s.maleHeightIndex, heightLevel, 0, &heightIdxs)
+	} else {
+		matchSystemUtils.FindHeightIdx(s.femaleHeightIndex, 0, heightLevel, &heightIdxs)
+	}
 
 	for _, idx := range heightIdxs {
 		if person.NumberOfDate == 0 {
 			break
 		}
 
-		t, _ := s.singlePersons.Load(idx)
-		target := t.(*models.SinglePerson)
+		target := s.singlePersons[idx]
 		target.Lock.Lock()
+
 		if target.NumberOfDate == 0 {
-			s.mu.Lock()
-			s.singlePersons.Delete(idx)
-			s.mu.Unlock()
+			s.RemoveSinglePerson(target.Name)
 			target.Lock.Unlock()
 			continue
 		}
-		if target.Height < person.Height {
+
+		if (person.Gender == c.Male && target.Height >= person.Height) || (person.Gender == c.Female && target.Height <= person.Height) {
 			target.Lock.Unlock()
 			continue
 		}
+
 		matches = append(matches, target)
 		person.NumberOfDate--
 		target.NumberOfDate--
@@ -177,90 +174,15 @@ func (s *matcheSystem) MatchingMalePerson(person *models.SinglePerson, numberOfD
 	return matches
 }
 
-func (s *matcheSystem) MatchingFmalePerson(person *models.SinglePerson, numberOfDate int) []*models.SinglePerson {
-
-	matches := make([]*models.SinglePerson, 0)
-	heightLevel := person.Height - (person.Height % 10)
-	heightIdxs := make([]int, 0)
-	s.findFmaleHeightIdx(heightLevel, 0, &heightIdxs)
-
-	for _, idx := range heightIdxs {
-		if person.NumberOfDate == 0 {
-			break
-		}
-
-		t, _ := s.singlePersons.Load(idx)
-		target := t.(*models.SinglePerson)
-		target.Lock.Lock()
-		if target.NumberOfDate == 0 {
-			s.mu.Lock()
-			s.singlePersons.Delete(idx)
-			s.mu.Unlock()
-			target.Lock.Unlock()
-			continue
-		}
-		if target.Height > person.Height {
-			target.Lock.Unlock()
-			continue
-		}
-		matches = append(matches, target)
-		person.NumberOfDate--
-		target.NumberOfDate--
-		target.Lock.Unlock()
+func (s *matcheSystem) GetHightIndex(gender string) map[int][]int {
+	if gender == c.Male {
+		return s.maleHeightIndex
+	} else if gender == c.Female {
+		return s.femaleHeightIndex
 	}
-	return matches
+	return nil
 }
 
-func (s *matcheSystem) findMaleHeightIdx(heightGte, heightLte int, heightIdx *[]int) {
-	heighGteLevel := heightGte - (heightGte % 10)
-	heighLteLevel := heightLte - (heightLte % 10)
-
-	if heightLte != 0 && heightGte != 0 {
-		for k, v := range s.maleHeightIndex {
-			if k >= heighGteLevel && k <= heighLteLevel {
-				*heightIdx = append(*heightIdx, v...)
-			}
-		}
-	} else if heightLte == 0 && heightGte != 0 {
-		for k, v := range s.maleHeightIndex {
-			if k >= heighGteLevel {
-				*heightIdx = append(*heightIdx, v...)
-			}
-		}
-	} else if heightLte != 0 && heightGte == 0 {
-
-		for k, v := range s.maleHeightIndex {
-			if k <= heighLteLevel {
-				*heightIdx = append(*heightIdx, v...)
-			}
-		}
-	}
-	return
-}
-
-func (s *matcheSystem) findFmaleHeightIdx(heightGte, heightLte int, heightIdx *[]int) {
-	heighGteLevel := heightGte - (heightGte % 10)
-	heighLteLevel := heightLte - (heightLte % 10)
-
-	if heightLte != 0 && heightGte != 0 {
-		for k, v := range s.fmaleHeightIndex {
-			if k >= heighGteLevel && k <= heighLteLevel {
-				*heightIdx = append(*heightIdx, v...)
-			}
-		}
-	} else if heightLte == 0 && heightGte != 0 {
-		for k, v := range s.fmaleHeightIndex {
-			if k >= heighGteLevel {
-				*heightIdx = append(*heightIdx, v...)
-			}
-		}
-	} else if heightLte != 0 && heightGte == 0 {
-
-		for k, v := range s.fmaleHeightIndex {
-			if k <= heighLteLevel {
-				*heightIdx = append(*heightIdx, v...)
-			}
-		}
-	}
-	return
+func (s *matcheSystem) GetNameIndex() map[string]*models.SinglePerson {
+	return s.nameIndex
 }

@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"net/http"
-	"tinderMatchingSystem/error"
+	"tinderMatchingSystem/internal/error"
 
 	"tinderMatchingSystem/pkg/utils/logger"
 

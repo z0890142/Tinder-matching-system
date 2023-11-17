@@ -16,6 +16,56 @@ const docTemplateserver = `{
     "basePath": "{{.BasePath}}",
     "paths": {
         "/tinder_system/v1/persons": {
+            "get": {
+                "summary": "Find the most N possible matched single people, where N is a request parameter.",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "number of single person",
+                        "name": "n",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "person name",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "M or F",
+                        "name": "gender",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "person height \u003e=",
+                        "name": "heightGte",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "person height \u003c=",
+                        "name": "heightLte",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.QuerySinglePeopleResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "post": {
                 "summary": "Add a new user to the matching system and find any possible matches for the new user",
                 "parameters": [
@@ -33,7 +83,7 @@ const docTemplateserver = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/models.AddSinglePersonAndMatchResponse"
                         }
                     },
                     "400": {
@@ -61,37 +111,7 @@ const docTemplateserver = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/tinder_system/v1/persons:match": {
-            "post": {
-                "summary": "Find the most N possible matched single people, where N is a request parameter.",
-                "parameters": [
-                    {
-                        "description": "params",
-                        "name": "params",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.SinglePersonMatchRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/models.CommonResponse"
                         }
                     },
                     "400": {
@@ -105,6 +125,28 @@ const docTemplateserver = `{
         }
     },
     "definitions": {
+        "models.AddSinglePersonAndMatchResponse": {
+            "type": "object",
+            "properties": {
+                "matches": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SinglePerson"
+                    }
+                },
+                "newUser": {
+                    "$ref": "#/definitions/models.SinglePerson"
+                }
+            }
+        },
+        "models.CommonResponse": {
+            "type": "object",
+            "properties": {
+                "result": {
+                    "type": "string"
+                }
+            }
+        },
         "models.ErrorDetails": {
             "type": "object",
             "required": [
@@ -131,6 +173,17 @@ const docTemplateserver = `{
                 }
             }
         },
+        "models.QuerySinglePeopleResponse": {
+            "type": "object",
+            "properties": {
+                "matches": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SinglePerson"
+                    }
+                }
+            }
+        },
         "models.SinglePerson": {
             "type": "object",
             "properties": {
@@ -141,9 +194,6 @@ const docTemplateserver = `{
                 "height": {
                     "type": "integer"
                 },
-                "lock": {
-                    "$ref": "#/definitions/sync.Mutex"
-                },
                 "name": {
                     "type": "string"
                 },
@@ -151,20 +201,6 @@ const docTemplateserver = `{
                     "type": "integer"
                 }
             }
-        },
-        "models.SinglePersonMatchRequest": {
-            "type": "object",
-            "properties": {
-                "n": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "sync.Mutex": {
-            "type": "object"
         }
     }
 }`

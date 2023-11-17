@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"tinderMatchingSystem/config"
 	app "tinderMatchingSystem/internal/application"
+	"tinderMatchingSystem/pkg/utils/config"
 
 	"os"
 	"os/signal"
@@ -13,7 +13,7 @@ import (
 var flagconf string
 
 func init() {
-	flag.StringVar(&flagconf, "conf-folder", "../../", "config path, eg: -conf-folder ./")
+	flag.StringVar(&flagconf, "conf-folder", "../..", "config path, eg: -conf-folder ./")
 
 }
 

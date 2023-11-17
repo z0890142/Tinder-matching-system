@@ -23,7 +23,7 @@ func initGinApplicationHook(app *Application) error {
 
 	router.POST("/persons", restfulHandler.AddSinglePersonAndMatch)
 	router.DELETE("/persons/:name", restfulHandler.RemoveSinglePerson)
-	router.POST("/persons:match", restfulHandler.QuerySinglePeople)
+	router.GET("/persons", restfulHandler.QuerySinglePeople)
 
 	app.srv.Handler = g
 	app.Logger.Debug("init gin http server")

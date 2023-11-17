@@ -1,23 +1,25 @@
 package restful
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
-	httpErr "tinderMatchingSystem/error"
 	"tinderMatchingSystem/internal/models"
-	matchesystem "tinderMatchingSystem/pkg/domain/match_system"
 
 	"github.com/gin-gonic/gin"
+
+	httpErr "tinderMatchingSystem/internal/error"
+	matcheSystem "tinderMatchingSystem/pkg/domain/match_system"
 )
 
 // @title Tinder Matching System API
 // @version 1.0
 type restfulHandler struct {
-	matcheSystem matchesystem.MatcheSystem
+	matcheSystem matcheSystem.MatcheSystem
 }
 
 func NewRestfulHandler() restfulHandler {
-	matchesystem := matchesystem.NewMatcheSystem()
+	matchesystem := matcheSystem.NewMatcheSystem()
 	return restfulHandler{
 		matcheSystem: matchesystem,
 	}
@@ -49,11 +51,7 @@ func (h *restfulHandler) AddSinglePersonAndMatch(ginC *gin.Context) {
 
 	var matches []*models.SinglePerson
 
-	if person.Gender == "M" {
-		matches = h.matcheSystem.MatchingFmalePerson(&person, person.NumberOfDate)
-	} else if person.Gender == "F" {
-		matches = h.matcheSystem.MatchingMalePerson(&person, person.NumberOfDate)
-	}
+	matches = h.matcheSystem.MatchingPerson(&person, person.NumberOfDate)
 
 	response := models.AddSinglePersonAndMatchResponse{
 		NewUser: &person,
@@ -67,7 +65,7 @@ func (h *restfulHandler) AddSinglePersonAndMatch(ginC *gin.Context) {
 // @Summary Remove a user from the matching system so that the user cannot be matched anymore.
 // @router /tinder_system/v1/persons/{name} [delete]
 // @param name path string true "person name"
-// @Success 200 {string} ok
+// @Success 200 {object} models.CommonResponse
 // @Failure 400 {object} models.ErrorResponse
 func (h *restfulHandler) RemoveSinglePerson(ginC *gin.Context) {
 	name, exist := ginC.Params.Get("name")
@@ -83,7 +81,9 @@ func (h *restfulHandler) RemoveSinglePerson(ginC *gin.Context) {
 		ginC.Error(err)
 		return
 	}
-	ginC.String(http.StatusOK, "OK")
+	ginC.JSON(http.StatusOK, models.CommonResponse{
+		Result: "OK",
+	})
 }
 
 // @Summary Find the most N possible matched single people, where N is a request parameter.
@@ -93,39 +93,15 @@ func (h *restfulHandler) RemoveSinglePerson(ginC *gin.Context) {
 // @param gender query string false "M or F"
 // @param heightGte query int false "person height >="
 // @param heightLte query string false "person height <="
-// @Success 200 {string} ok
+// @Success 200 {object} models.QuerySinglePeopleResponse
 // @Failure 400 {object} models.ErrorResponse
 func (h *restfulHandler) QuerySinglePeople(ginC *gin.Context) {
-	heightGte, err := strconv.Atoi(ginC.Query("heightGte"))
-	if err != nil {
-		err := httpErr.NewHttpError(http.StatusBadRequest, httpErr.MatcheSinglePersonErr, err.Error())
-		ginC.Error(err)
-		return
-	}
-	heightLte, err := strconv.Atoi(ginC.Query("heightLte"))
-	if err != nil {
-		err := httpErr.NewHttpError(http.StatusBadRequest, httpErr.MatcheSinglePersonErr, err.Error())
-		ginC.Error(err)
-		return
-	}
-	n, err := strconv.Atoi(ginC.Query("n"))
-	if err != nil {
-		err := httpErr.NewHttpError(http.StatusBadRequest, httpErr.MatcheSinglePersonErr, err.Error())
-		ginC.Error(err)
-		return
-	}
-	if n == 0 {
-		err := httpErr.NewHttpError(http.StatusBadRequest, httpErr.MatcheSinglePersonErr, "n can't null")
-		ginC.Error(err)
-		return
-	}
 
-	queryFilter := models.QueryFilter{
-		Name:      ginC.Query("name"),
-		Gender:    ginC.Query("gender"),
-		HeightGte: heightGte,
-		HeightLte: heightLte,
-		N:         n,
+	queryFilter, err := getFilter(ginC)
+	if err != nil {
+		err := httpErr.NewHttpError(http.StatusBadRequest, httpErr.MatcheSinglePersonErr, err.Error())
+		ginC.Error(err)
+		return
 	}
 
 	matches, err := h.matcheSystem.QuerySinglePerson(queryFilter)
@@ -134,5 +110,47 @@ func (h *restfulHandler) QuerySinglePeople(ginC *gin.Context) {
 		ginC.Error(err)
 		return
 	}
-	ginC.JSON(http.StatusOK, matches)
+	ginC.JSON(http.StatusOK, models.QuerySinglePeopleResponse{
+		Matches: matches,
+	})
+}
+
+func getFilter(ginC *gin.Context) (*models.QueryFilter, error) {
+	heightGte, err := parseInt(ginC, "heightGte")
+	if err != nil {
+		return nil, err
+	}
+
+	heightLte, err := parseInt(ginC, "heightLte")
+	if err != nil {
+		return nil, err
+	}
+
+	n, err := parseInt(ginC, "n")
+	if err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, err
+	}
+
+	return &models.QueryFilter{
+		Name:      ginC.Query("name"),
+		Gender:    ginC.Query("gender"),
+		HeightGte: heightGte,
+		HeightLte: heightLte,
+		N:         n,
+	}, nil
+}
+
+func parseInt(ginC *gin.Context, paramName string) (int, error) {
+	valStr := ginC.Query(paramName)
+	if valStr == "" {
+		return 0, nil
+	}
+	val, err := strconv.Atoi(valStr)
+	if err != nil {
+		return 0, errors.New(paramName + " must be a valid integer")
+	}
+	return val, nil
 }

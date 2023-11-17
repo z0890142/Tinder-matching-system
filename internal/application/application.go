@@ -9,7 +9,7 @@ import (
 	"time"
 	"tinderMatchingSystem/internal/c"
 
-	"tinderMatchingSystem/config"
+	"tinderMatchingSystem/pkg/utils/config"
 
 	"go.uber.org/zap"
 )
