@@ -1,0 +1,197 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "Tinder Matching System API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "paths": {
+        "/tinder_system/v1/persons": {
+            "get": {
+                "summary": "Find the most N possible matched single people, where N is a request parameter.",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "number of single person",
+                        "name": "n",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "person name",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "M or F",
+                        "name": "gender",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "person height \u003e=",
+                        "name": "heightGte",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "person height \u003c=",
+                        "name": "heightLte",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.QuerySinglePeopleResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "summary": "Add a new user to the matching system and find any possible matches for the new user",
+                "parameters": [
+                    {
+                        "description": "params",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SinglePerson"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.AddSinglePersonAndMatchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tinder_system/v1/persons/{name}": {
+            "delete": {
+                "summary": "Remove a user from the matching system so that the user cannot be matched anymore.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "person name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.CommonResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.AddSinglePersonAndMatchResponse": {
+            "type": "object",
+            "properties": {
+                "matches": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SinglePerson"
+                    }
+                },
+                "newUser": {
+                    "$ref": "#/definitions/models.SinglePerson"
+                }
+            }
+        },
+        "models.CommonResponse": {
+            "type": "object",
+            "properties": {
+                "result": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ErrorDetails": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ErrorResponse": {
+            "type": "object",
+            "required": [
+                "error"
+            ],
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/models.ErrorDetails"
+                }
+            }
+        },
+        "models.QuerySinglePeopleResponse": {
+            "type": "object",
+            "properties": {
+                "matches": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SinglePerson"
+                    }
+                }
+            }
+        },
+        "models.SinglePerson": {
+            "type": "object",
+            "properties": {
+                "gender": {
+                    "type": "string",
+                    "example": "M or F"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "number_of_date": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

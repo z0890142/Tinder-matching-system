@@ -1,0 +1,130 @@
+definitions:
+  models.AddSinglePersonAndMatchResponse:
+    properties:
+      matches:
+        items:
+          $ref: '#/definitions/models.SinglePerson'
+        type: array
+      newUser:
+        $ref: '#/definitions/models.SinglePerson'
+    type: object
+  models.CommonResponse:
+    properties:
+      result:
+        type: string
+    type: object
+  models.ErrorDetails:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    required:
+    - code
+    - message
+    type: object
+  models.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/models.ErrorDetails'
+    required:
+    - error
+    type: object
+  models.QuerySinglePeopleResponse:
+    properties:
+      matches:
+        items:
+          $ref: '#/definitions/models.SinglePerson'
+        type: array
+    type: object
+  models.SinglePerson:
+    properties:
+      gender:
+        example: M or F
+        type: string
+      height:
+        type: integer
+      name:
+        type: string
+      number_of_date:
+        type: integer
+    type: object
+info:
+  contact: {}
+  title: Tinder Matching System API
+  version: "1.0"
+paths:
+  /tinder_system/v1/persons:
+    get:
+      parameters:
+      - description: number of single person
+        in: query
+        name: "n"
+        required: true
+        type: integer
+      - description: person name
+        in: query
+        name: name
+        type: string
+      - description: M or F
+        in: query
+        name: gender
+        type: string
+      - description: person height >=
+        in: query
+        name: heightGte
+        type: integer
+      - description: person height <=
+        in: query
+        name: heightLte
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.QuerySinglePeopleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Find the most N possible matched single people, where N is a request
+        parameter.
+    post:
+      parameters:
+      - description: params
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/models.SinglePerson'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AddSinglePersonAndMatchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Add a new user to the matching system and find any possible matches
+        for the new user
+  /tinder_system/v1/persons/{name}:
+    delete:
+      parameters:
+      - description: person name
+        in: path
+        name: name
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CommonResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Remove a user from the matching system so that the user cannot be matched
+        anymore.
+swagger: "2.0"

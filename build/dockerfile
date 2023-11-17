@@ -1,0 +1,27 @@
+FROM golang:1.21 AS build_base
+LABEL stage=builder
+
+ENV GIN_MODE=release
+ENV CGO_ENABLED=0
+ENV GO111MODULE=on
+ENV GOOS=linux 
+ENV GOARCH=amd64
+
+WORKDIR /service/
+COPY . .
+
+RUN go build -mod=vendor -o /bin/app ./cmd/tinderMatchingSystem
+#----------Deploy-----------
+FROM alpine as final
+
+
+WORKDIR /service/
+
+RUN mkdir -p /config
+
+COPY --from=build_base /bin/app ./app
+COPY  config.yaml ./config/
+
+
+EXPOSE 80
+CMD ["/service/app","-conf-folder", "/service/config"]

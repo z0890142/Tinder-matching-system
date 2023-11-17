@@ -1,0 +1,7 @@
+ENV: local
+SERVICE:
+  NAME: tinder_matching_system
+  HOST: "0.0.0.0"
+  PORT: "80"
+LOG_LEVEL: DEBUG
+LOG_FILE: stdout
